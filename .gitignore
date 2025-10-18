@@ -1,0 +1,11 @@
+# игнорировать виртуальное окружение
+.venv/
+
+# игнорировать временные файлы Jupyter
+.ipynb_checkpoints/
+
+# игнорировать кэш Python
+__pycache__/
+
+# игнорировать артефакты Neptune
+lesson_13/.neptune/
