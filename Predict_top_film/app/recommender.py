@@ -33,7 +33,10 @@ class Recommender:
             self.movie_id_to_idx = {int(k): int(v) for k, v in json.load(f).items()}
 
         self.movies = pd.read_parquet(artifacts_dir / "movies.parquet")
-        self.ratings = pd.read_csv(RATINGS_FILE)
+        if RATINGS_FILE.exists():
+            self.ratings = pd.read_csv(RATINGS_FILE)
+        else:
+            self.ratings = None  # optional; only needed for recommend_for_user
 
     def recommend_for_user(
         self,
@@ -59,7 +62,11 @@ class Recommender:
 
         final_score = (alpha * clf_score + beta * emb_score) * pop_penalty
 
-        seen = self.ratings[self.ratings["userId"] == user_id]["movieId"].values
+        seen = (
+            self.ratings[self.ratings["userId"] == user_id]["movieId"].values
+            if self.ratings is not None
+            else np.array([], dtype=int)
+        )
 
         recs = self.movies.copy()
         recs["score"] = final_score

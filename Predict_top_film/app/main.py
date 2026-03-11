@@ -59,3 +59,19 @@ def recommend(req: RecommendRequest) -> RecommendResponse:
 
     return RecommendResponse(movie_ids_requested=req.movie_ids, items=items)
 
+
+@app.get("/movies")
+def list_movies(limit: int = 20) -> dict:
+    """Return sample movie IDs and titles from the catalog (for use in POST /recommend)."""
+    rec = get_recommender()
+    df = rec.movies.head(limit)
+    items = [
+        {
+            "movie_id": int(row.id),
+            "title": row.title,
+            "genres": list(row.genres_list) if isinstance(row.genres_list, list) else [],
+        }
+        for row in df.itertuples(index=False)
+    ]
+    return {"count": len(items), "movies": items}
+
