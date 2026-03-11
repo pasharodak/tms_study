@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: movies_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: movies
+      POSTGRES_USER: movies
+      POSTGRES_PASSWORD: movies
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: movies_app
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://movies:movies@db:5432/movies
+      DATASET_PATH: /app/dataset
+      ARTIFACTS_PATH: /app/model_artifacts
+    volumes:
+      - ./dataset:/app/dataset:ro
+      - ./model_artifacts:/app/model_artifacts
+    ports:
+      - "8000:8000"
+
+volumes:
+  db_data:
