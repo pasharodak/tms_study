@@ -1,0 +1,74 @@
+# Database (schema + startup) and population run in separate containers.
+# - db: PostgreSQL only; schema from database/init.sql.
+# - db_populate: runs ingest from database/ (one-off), then exits.
+# - app: FastAPI only; connects to db.
+
+version: "3.9"
+
+services:
+  # Database container: Postgres + schema (database/init.sql on first start)
+  db:
+    image: postgres:16
+    container_name: movies_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: movies
+      POSTGRES_USER: movies
+      POSTGRES_PASSWORD: movies
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - app_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U movies -d movies"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Database population container: ingest CSVs into db (run once after db is up)
+  db_populate:
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    container_name: movies_db_populate
+    environment:
+      DATABASE_URL: postgresql://movies:movies@db:5432/movies
+      DATA_PATH: /data
+    volumes:
+      - ./dataset:/data:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app_net
+    restart: "no"
+
+  # App container (API only; connects to db)
+  app:
+    build: .
+    container_name: movies_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://movies:movies@db:5432/movies
+      DATASET_PATH: /app/dataset
+      ARTIFACTS_PATH: /app/model_artifacts
+    volumes:
+      - ./dataset:/app/dataset:ro
+      - ./model_artifacts:/app/model_artifacts
+    ports:
+      - "8000:8000"
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    driver: bridge
+
+volumes:
+  db_data:
